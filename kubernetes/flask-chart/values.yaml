@@ -3,7 +3,7 @@
 deployment:
   name: flask
 
-replicaCount: 2
+replicaCount: 5
 
 image:
   repository: 356892573173.dkr.ecr.ap-northeast-2.amazonaws.com/ekseks-project-app
