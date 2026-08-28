@@ -1,0 +1,23 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+
+metadata:
+  name: flask-ingress
+
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing    #외부 공개용 ALB로 만듬
+    alb.ingress.kubernetes.io/target-type: ip            #ALB 타겟 그룹의 타겟으로 EKS 파드의 ip를 등록
+
+spec:
+  ingressClassName: alb         #이 ingress는 AWS LB  컨트롤러가 처리
+
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: flask-service
+                port:
+                  number: 80

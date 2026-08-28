@@ -1,0 +1,83 @@
+###Deployment###
+
+deployment:
+  name: flask
+
+replicaCount: 4
+
+image:
+  repository: 356892573173.dkr.ecr.ap-northeast-2.amazonaws.com/ekseks-project-app
+  tag: v2
+
+containerPort: 8080
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+readinessProbe:
+  path: /health
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  failureThreshold: 3
+
+livenessProbe:
+  path: /health
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  failureThreshold: 3
+
+
+
+
+
+###Service###  (targetPort는 containerPort와 동일하므로 뺐음)
+service:
+  name: flask-service
+  type: ClusterIP
+  port: 80
+  portName: http
+
+
+
+
+
+###Ingress###
+ingress:
+  name: flask-ingress
+  className: alb
+
+  annotations:
+    scheme: internet-facing
+    targetType: ip
+
+  path: /
+  pathType: Prefix
+
+
+
+
+
+###HPA###
+hpa:
+  name: flask-hpa
+  minReplicas: 2
+  maxReplicas: 5
+  cpuUtilization: 50
+
+
+
+
+###Service Monitor###
+serviceMonitor:
+  name: flask-servicemonitor
+  namespace: monitoring
+  releaseLabel: kube-prometheus-stack
+  targetNamespace: default
+  appLabel: flask
+  path: /metrics
+  interval: 15s
