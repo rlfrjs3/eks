@@ -65,7 +65,7 @@ jobs:
 
     - name: 12. ArgoCD root 애플리케이션 등록 (ArgoCD 와 Git 연동)
       run: | 
-        kubectl apply -f ../kubernetes/bootstrap/root-app.yml
+        kubectl apply -f ../kubernetes/bootstrap/root-app.yaml
    
     - name: 13. AWS LB Controller 설정값 변경
       run: | 
