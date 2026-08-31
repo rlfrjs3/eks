@@ -43,12 +43,15 @@ jobs:
 
     - name: 7. EKS kubeconfig 설정
       run: | 
-        export AWS_PROFILE=geon
+        echo "USER=$(whoami)"
+        echo "HOME=$HOME"
+
         aws eks update-kubeconfig --region ap-northeast-2 --name ekseks-project-eks 
+
+        ls -al $HOME/.kube || true
  
     - name: 8. EKS 연결 확인
       run: | 
-        aws sts get-caller-identity
         kubectl get nodes
 
     - name: 9. ArgoCD 네임스페이스 생성 (없으면 생성, 있으면 그대로 유지)
