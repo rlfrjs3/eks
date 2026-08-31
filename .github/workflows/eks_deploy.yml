@@ -61,4 +61,7 @@ jobs:
       run: |  
         kubectl wait --for=condition=Available deployment/argocd-server -n argocd --timeout=300s
 
+    - name: 12. ArgoCD root 애플리케이션 등록 (ArgoCD 와 Git 연동)
+      run: | 
+        kubectl apply -f ../kubernetes/bootstrap/root-app.yml
    
