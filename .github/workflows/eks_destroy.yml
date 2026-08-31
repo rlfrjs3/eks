@@ -1,7 +1,7 @@
 #AWS ALB 리소스는 ingress 삭제를 통해 삭제됨 (tf destroy 이전에 진행)
 
 
-name: 테라폼을 사용한 EKS 삭제
+name: Ingress 삭제 + EKS 삭제 (Terraform)
 
 
 #언제 작동할 것인가? -> 깃헙 사이트에서 [배포 버튼]을 누르면
