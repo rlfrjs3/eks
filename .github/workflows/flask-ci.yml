@@ -4,6 +4,10 @@ name: Flask Application CI
 on:
   workflow_dispatch:
 
+#Github Token이 push할 수 있도록 write 권한 부여
+permissions:
+  contents: write
+
 jobs:
   build-and-push:
     runs-on: self-hosted
@@ -39,3 +43,13 @@ jobs:
     - name: 7. Helm values.yaml 수정 
       run: | 
         sed -i "s/^  tag: .*/  tag: ${{ github.sha }}/" kubernetes/flask-chart/values.yaml
+        grep -A 2 "^image:" kubernetes/flask-chart/values.yaml
+
+    - name: 8. Helm vaules.yaml 변경사항 Git push
+      run: | 
+        git config user.name "github-actions"
+        git config user.email "github-actions@github.com"
+
+        git add kubernetes/flask-chart/vaules.yaml
+        git commit -m "Update Flask image tag to ${{ github.sha }}"
+        git push origin HEAD:main
