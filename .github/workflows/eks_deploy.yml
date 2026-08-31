@@ -43,12 +43,7 @@ jobs:
 
     - name: 7. EKS kubeconfig 설정
       run: | 
-        echo "USER=$(whoami)"
-        echo "HOME=$HOME"
-
         aws eks update-kubeconfig --region ap-northeast-2 --name ekseks-project-eks 
-
-        ls -al $HOME/.kube || true
  
     - name: 8. EKS 연결 확인
       run: | 
