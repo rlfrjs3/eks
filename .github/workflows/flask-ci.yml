@@ -50,6 +50,6 @@ jobs:
         git config user.name "github-actions"
         git config user.email "github-actions@github.com"
 
-        git add kubernetes/flask-chart/vaules.yaml
+        git add kubernetes/flask-chart/values.yaml
         git commit -m "Update Flask image tag to ${{ github.sha }}"
         git push origin HEAD:main
