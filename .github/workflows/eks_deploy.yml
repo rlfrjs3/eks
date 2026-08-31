@@ -1,4 +1,4 @@
-name: 테라폼을 사용한 EKS 배포 (init -> plan -> apply)
+name: 테라폼을 사용한 EKS 배포 + ArgoCD 설치
 
 
 #언제 작동할 것인가? -> 깃헙 사이트에서 [배포 버튼]을 누르면
@@ -43,9 +43,24 @@ jobs:
 
     - name: 7. EKS kubeconfig 설정
       run: | 
+        export AWS_PROFILE=geon
         aws eks update-kubeconfig --region ap-northeast-2 --name ekseks-project-eks 
  
     - name: 8. EKS 연결 확인
       run: | 
+        aws sts get-caller-identity
         kubectl get nodes
 
+    - name: 9. ArgoCD 네임스페이스 생성 (없으면 생성, 있으면 그대로 유지)
+      run: | 
+        kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f - 
+
+    - name: 10. ArgoCD 설치
+      run: | 
+        kubectl apply -n argocd --server-side --force-conflicts -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+
+    - name: 11. ArgoCD 설치완료 대기
+      run: |  
+        kubectl wait --for=condition=Available deployment/argocd-server -n argocd --timeout=300s
+
+   
