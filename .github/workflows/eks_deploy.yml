@@ -5,6 +5,9 @@ name: EKS 배포 (Terraform) &  ArgoCD 설치 + Git/ArgoCD 연동 (yaml 리소�
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 env:
   AWS_REGION: ap-northeast-2
 
@@ -65,7 +68,7 @@ jobs:
 
     - name: 12. ArgoCD root 애플리케이션 등록 (ArgoCD 와 Git 연동)
       run: | 
-        kubectl apply -f ../kubernetes/bootstrap/root-app.yaml
+        kubectl apply -f ../kubernetes/bootstrap/root-app.yml
    
     - name: 13. AWS LB Controller 설정값 변경
       run: | 
@@ -77,3 +80,15 @@ jobs:
         sed -i "s|__AWS_REGION__|${AWS_REGION}|g" ../kubernetes/values/aws-load-balancer-controller.yaml
         sed -i "s|__VPC_ID__|${VPC_ID}|g" ../kubernetes/values/aws-load-balancer-controller.yaml
         sed -i "s|__LB_ROLE_ARN__|${LB_ROLE_ARN}|g" ../kubernetes/values/aws-load-balancer-controller.yaml
+
+    - name: 14. AWS LB Controller values Git Push
+      run: |
+        git config user.name "github-actions"
+        git config user.email "github-actions@github.com"
+
+        git add ../kubernetes/values/aws-load-balancer-controller.yaml
+
+        git diff --cached --quiet || \
+        git commit -m "Update AWS LB Controller environment values"
+
+        git push origin HEAD:main
