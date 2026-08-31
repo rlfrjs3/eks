@@ -1,4 +1,7 @@
-name: 테라폼을 사용한 EKS 배포 (init -> plan -> apply)
+#AWS ALB 리소스는 ingress 삭제를 통해 삭제됨 (tf destroy 이전에 진행)
+
+
+name: 테라폼을 사용한 EKS 삭제 (plan -> destroy)          
 
 
 #언제 작동할 것인가? -> 깃헙 사이트에서 [배포 버튼]을 누르면
@@ -7,7 +10,7 @@ on:
 
 
 jobs: 
-  terraform-deploy:
+  terraform-destroy:
     #runs-on: ubuntu-latest
     runs-on: self-hosted
 
@@ -29,23 +32,29 @@ jobs:
     - name: 3. 러너VM에 테라폼 설치
       uses: hashicorp/setup-terraform@v3
 
-    - name: 4. 테라폼 초기화 (init)
+    - name: 4. EKS kubeconfig 설정 
+      run: | 
+        aws eks update-kubeconfig --region ap-northeast-2 --name ekseks-project-eks
+
+    - name: 5. Ingress 삭제
+      run: |
+        kubectl delete ingress flask-ingress -n default --ignore-not-found=true
+
+    - name: 6. ALB 삭제 대기
+      run: | 
+        sleep 60
+
+    - name: 7. 테라폼 초기화 (init)
       run: | 
         terraform init
  
-    - name: 5. 테라폼 배포 계획 확인 (plan)
+    - name: 8. 테라폼 배포 계획 확인 (plan)
       run: | 
-        terraform plan 
+        terraform plan -destroy 
  
-    - name: 6. 테라폼 실제 배포 (apply)
+    - name: 9. 테라폼 실제 배포 (apply)
       run: | 
-        terraform apply -auto-approve
+        terraform destroy -auto-approve
 
-    - name: 7. EKS kubeconfig 설정
-      run: | 
-        aws eks update-kubeconfig --region ap-northeast-2 --name ekseks-project-eks 
- 
-    - name: 8. EKS 연결 확인
-      run: | 
-        kubectl get nodes
+
 
