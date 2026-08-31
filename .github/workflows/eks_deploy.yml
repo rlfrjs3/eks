@@ -5,6 +5,8 @@ name: EKS 배포 (Terraform) &  ArgoCD 설치 + Git/ArgoCD 연동 (yaml 리소�
 on:
   workflow_dispatch:
 
+env:
+  AWS_REGION: ap-northeast-2
 
 jobs: 
   terraform-deploy:
@@ -65,3 +67,13 @@ jobs:
       run: | 
         kubectl apply -f ../kubernetes/bootstrap/root-app.yml
    
+    - name: 13. AWS LB Controller 설정값 변경
+      run: | 
+        CLUSTER_NAME=$(terraform output -raw eks_cluster_name)
+        VPC_ID=$(terraform output -raw vpc_id)
+        LB_ROLE_ARN=$(terraform output -raw aws_lb_controller_role_arn)
+
+        sed -i "s|__CLUSTER_NAME__|${CLUSTER_NAME}|g" ../kubernetes/values/aws-load-balancer-controller.yaml
+        sed -i "s|__AWS_REGION__|${AWS_REGION}|g" ../kubernetes/values/aws-load-balancer-controller.yaml
+        sed -i "s|__VPC_ID__|${VPC_ID}|g" ../kubernetes/values/aws-load-balancer-controller.yaml
+        sed -i "s|__LB_ROLE_ARN__|${LB_ROLE_ARN}|g" ../kubernetes/values/aws-load-balancer-controller.yaml

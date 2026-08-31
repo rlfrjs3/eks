@@ -8,6 +8,9 @@ name: Ingress 삭제 + EKS 삭제 (Terraform)
 on:
   workflow_dispatch:
 
+env:
+  AWS_REGION: ap-northeast-2
+
 
 jobs: 
   terraform-destroy:
