@@ -53,11 +53,11 @@ jobs:
  
     - name: 8. 테라폼 배포 계획 확인 (plan)
       run: | 
-        terraform plan -destroy 
+        terraform plan -destroy -out=destroy_plan
  
     - name: 9. 테라폼 실제 배포 (apply)
       run: | 
-        terraform destroy -auto-approve
+        terraform destroy -auto-approve destroy_plan
 
 
 

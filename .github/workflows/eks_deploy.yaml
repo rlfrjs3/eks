@@ -1,4 +1,4 @@
-name: EKS 배포 (Terraform) &  ArgoCD 설치 + Git/ArgoCD 연동 (yaml 리소스 적용)
+name: EKS 배포 (Terraform) &  ArgoCD 설치 + Git/ArgoCD 연동 (Bootstrap)
 
 
 #언제 작동할 것인가? -> 깃헙 사이트에서 [배포 버튼]을 누르면
@@ -40,11 +40,11 @@ jobs:
  
     - name: 5. 테라폼 배포 계획 확인 (plan)
       run: | 
-        terraform plan 
+        terraform plan -out=apply_plan
  
     - name: 6. 테라폼 실제 배포 (apply)
       run: | 
-        terraform apply -auto-approve
+        terraform apply -auto-approve apply_plan
 
     - name: 7. EKS kubeconfig 설정
       run: | 
@@ -66,11 +66,7 @@ jobs:
       run: |  
         kubectl wait --for=condition=Available deployment/argocd-server -n argocd --timeout=300s
 
-    - name: 12. ArgoCD root 애플리케이션 등록 (ArgoCD 와 Git 연동)
-      run: | 
-        kubectl apply -f ../kubernetes/bootstrap/root-app.yml
-   
-    - name: 13. AWS LB Controller 설정값 변경
+    - name: 12. AWS LB Controller 설정값 변경
       run: | 
         CLUSTER_NAME=$(terraform output -raw eks_cluster_name)
         VPC_ID=$(terraform output -raw vpc_id)
@@ -81,7 +77,7 @@ jobs:
         sed -i "s|__VPC_ID__|${VPC_ID}|g" ../kubernetes/values/aws-load-balancer-controller.yaml
         sed -i "s|__LB_ROLE_ARN__|${LB_ROLE_ARN}|g" ../kubernetes/values/aws-load-balancer-controller.yaml
 
-    - name: 14. AWS LB Controller values Git Push
+    - name: 13. AWS LB Controller values Git Push
       run: |
         git config user.name "github-actions"
         git config user.email "github-actions@github.com"
@@ -92,3 +88,8 @@ jobs:
         git commit -m "Update AWS LB Controller environment values"
 
         git push origin HEAD:main
+
+    - name: 14. ArgoCD root 애플리케이션 등록 (ArgoCD 와 Git 연동)
+      run: |
+        kubectl apply -f ../kubernetes/bootstrap/root-app.yml
+
