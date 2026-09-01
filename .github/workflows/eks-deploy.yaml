@@ -1,0 +1,44 @@
+name: EKS 배포 (Terraform)
+
+
+#언제 작동할 것인가? -> 깃헙 사이트에서 [배포 버튼]을 누르면
+on:
+  workflow_dispatch:
+
+env:
+  AWS_REGION: ap-northeast-2
+
+jobs: 
+  terraform-deploy:
+    #runs-on: ubuntu-latest
+    runs-on: self-hosted
+
+    defaults:
+      run:
+        working-directory: terraform
+
+    steps:
+    - name: 1. 깃헙 테라폼 레포에 있는 코드를 러너VM에 다운로드 
+      uses: actions/checkout@v4
+
+    - name: 2. AWS profile 인증 
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_GEON }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_GEON }}
+        aws-region: ap-northeast-2
+
+    - name: 3. 러너VM에 테라폼 설치
+      uses: hashicorp/setup-terraform@v3
+
+    - name: 4. 테라폼 초기화 (init)
+      run: | 
+        terraform init
+ 
+    - name: 5. 테라폼 배포 계획 확인 (plan)
+      run: | 
+        terraform plan -out=apply_plan
+ 
+    - name: 6. 테라폼 실제 배포 (apply)
+      run: | 
+        terraform apply -auto-approve apply_plan

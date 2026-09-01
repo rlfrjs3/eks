@@ -1,0 +1,33 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+
+metadata:
+  name: flask-app
+  namespace: argocd
+
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io/background
+
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/rlfrjs3/eks.git
+    targetRevision: main
+    path: kubernetes/flask-chart
+    
+    #ArgoCD가 helm 랜더링을 통해 flask-app을 만들고 배포
+    helm:
+      releaseName: flask-app
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: flask
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+
+    syncOptions:
+      - CreateNamespace=true

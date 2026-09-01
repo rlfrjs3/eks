@@ -77,7 +77,7 @@ serviceMonitor:
   name: flask-servicemonitor
   namespace: monitoring
   releaseLabel: kube-prometheus-stack
-  targetNamespace: default
+  targetNamespace: flask
   appLabel: flask
   path: /metrics
   interval: 15s
