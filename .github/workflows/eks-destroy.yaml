@@ -41,7 +41,7 @@ jobs:
 
     - name: 5. Ingress 삭제
       run: |
-        kubectl delete ingress flask-ingress -n default --ignore-not-found=true
+        kubectl delete ingress flask-ingress -n flask --ignore-not-found=true
 
     - name: 6. ALB 삭제 대기
       run: | 
@@ -57,7 +57,7 @@ jobs:
  
     - name: 9. 테라폼 실제 배포 (apply)
       run: | 
-        terraform destroy -auto-approve destroy_plan
+        terraform apply -auto-approve destroy_plan
 
 
 
