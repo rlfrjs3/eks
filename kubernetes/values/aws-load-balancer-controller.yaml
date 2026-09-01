@@ -1,9 +1,9 @@
-clusterName: __CLUSTER_NAME__
-region: __AWS_REGION__
-vpcId: __VPC_ID__
+clusterName: ekseks-project-eks
+region: ap-northeast-2
+vpcId: vpc-0cc9607fcfdaeb9a6
 
 serviceAccount:
   create: true
   name: aws-load-balancer-controller
   annotations:
-    eks.amazonaws.com/role-arn: __LB_ROLE_ARN__
+    eks.amazonaws.com/role-arn: arn:aws:iam::356892573173:role/ekseks-project-aws-load-balancer-controller-role
