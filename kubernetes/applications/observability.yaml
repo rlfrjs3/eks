@@ -5,18 +5,23 @@ metadata:
   name: observability
   namespace: argocd
 
-  # Application 삭제 시, ArgoCD가 관리하던 monitoring 리소스도 같이 삭제
+  # Application 삭제 시 ArgoCD가 관리하던 리소스도 같이 삭제
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 
 spec:
   project: default
 
-  sources:
-    # Prometheus Community 공식 Helm Chart
-    - repoURL: https://prometheus-community.github.io/helm-charts
-      chart: kube-prometheus-stack
-      targetRevision: 88.6.1
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    targetRevision: 88.6.1
+
+    helm:
+      valuesObject:
+        grafana:
+          adminUser: admin
+          adminPassword: "grafana-admin-2026"
 
   destination:
     server: https://kubernetes.default.svc
