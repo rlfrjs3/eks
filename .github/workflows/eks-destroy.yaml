@@ -37,8 +37,9 @@ jobs:
       run: | 
         aws eks update-kubeconfig --region ap-northeast-2 --name ekseks-project-eks
 
-    - name: 5. flask-app  자동 Sync 중지
+    - name: 5. root-app & flask-app  자동 Sync 중지
       run: | 
+        kubectl patch application root-app -n argocd --type merge -p '{"spec":{"syncPolicy":{"automated":null}}}'
         kubectl patch application flask-app -n argocd --type merge -p '{"spec":{"syncPolicy":{"automated":null}}}'
 
     - name: 6. flask Ingress 삭제 및 ALB 삭제 대기
@@ -65,6 +66,3 @@ jobs:
     - name: 9. 테라폼 실제 배포 (apply)
       run: | 
         terraform apply -auto-approve destroy_plan
-
-
-
