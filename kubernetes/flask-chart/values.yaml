@@ -7,7 +7,7 @@ replicaCount: 2
 
 image:
   repository: 356892573173.dkr.ecr.ap-northeast-2.amazonaws.com/ekseks-project-app
-  tag: 3c4f553dcb2d3a18a64dc0231fd99e96610531cc
+  tag: f926c025737bc2613c88e1917f8200806900f646
 
 containerPort: 8080
 
