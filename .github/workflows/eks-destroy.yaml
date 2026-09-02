@@ -43,8 +43,16 @@ jobs:
 
     - name: 6. flask Ingress 삭제 및 ALB 삭제 대기
       run: |
-        kubectl delete ingress flask-ingress -n flask --ignore-not-found=true
-        sleep 60
+        ALB_DNS=$(kubectl get ingress flask-ingress -n flask -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+        ALB_ARN=$(aws elbv2 describe-load-balancers --query "LoadBalancers[?DNSName=='${ALB_DNS}'].LoadBalancerArn | [0]" --output text)
+        echo "삭제 ALB ARN: $ALB_ARN"
+
+
+        kubectl delete ingress flask-ingress -n flask --ignore-not-found=true --wait=false
+
+        if [ "$ALB_ARN" != "None" ] && [ -n "$ALB_ARN" ]; then
+          aws elbv2 wait load-balancers-deleted --load-balancer-arns "$ALB_ARN"
+        fi
 
     - name: 7. 테라폼 초기화 (init)
       run: | 
