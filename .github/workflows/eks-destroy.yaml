@@ -1,4 +1,4 @@
-#1. root-app / flask-app의 ArgoCD 자동 Sync  중지 -> flask Ingress 삭제 후 ArgoCD가 리소스를 다시 생성하는 것을 방지
+#1. flask-app의 ArgoCD 자동 Sync  중지 -> flask Ingress 삭제 후 ArgoCD가 리소스를 다시 생성하는 것을 방지
 #2. flask Ingress 삭제 -> ALB 관련 AWS 리소스 삭제
 #3. 최종 terraform destroy 
 name: Ingress 삭제 + EKS 삭제 (Terraform)
@@ -37,9 +37,8 @@ jobs:
       run: | 
         aws eks update-kubeconfig --region ap-northeast-2 --name ekseks-project-eks
 
-    - name: 5. root-app & flask-app  자동 Sync 중지
+    - name: 5. flask-app  자동 Sync 중지
       run: | 
-        kubectl patch application root-app -n argocd --type merge -p '{"spec":{"syncPolicy":{"automated":null}}}'
         kubectl patch application flask-app -n argocd --type merge -p '{"spec":{"syncPolicy":{"automated":null}}}'
 
     - name: 6. flask Ingress 삭제 및 ALB 삭제 대기
