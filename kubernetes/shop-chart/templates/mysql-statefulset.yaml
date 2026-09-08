@@ -1,0 +1,93 @@
+apiVersion: apps/v1
+kind: StatefulSet
+
+metadata:
+  name: {{ .Values.mysql.name }}
+
+spec:
+  serviceName: {{ .Values.mysql.service.name }}
+
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: shop-mysql
+
+  template:
+    metadata:
+      labels:
+        app: shop-mysql
+
+    spec:
+      containers:
+        - name: mysql
+
+          image: "{{ .Values.mysql.image.repository }}:{{ .Values.mysql.image.tag }}"
+
+          imagePullPolicy: {{ .Values.mysql.image.pullPolicy }}
+
+          ports:
+            - containerPort: 3306
+              name: mysql
+
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: shop-mysql-secret
+                  key: MYSQL_ROOT_PASSWORD
+
+            - name: MYSQL_DATABASE
+              value: {{ .Values.mysql.database | quote }}
+
+            - name: MYSQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: shop-mysql-secret
+                  key: MYSQL_USER
+
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: shop-mysql-secret
+                  key: MYSQL_PASSWORD
+
+          volumeMounts:
+            - name: mysql-data
+              mountPath: /var/lib/mysql
+
+            - name: mysql-init
+              mountPath: /docker-entrypoint-initdb.d/init.sql
+              subPath: init.sql
+              readOnly: true
+
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - mysqladmin ping -h 127.0.0.1 -uroot -p"$MYSQL_ROOT_PASSWORD"
+
+            initialDelaySeconds: {{ .Values.mysql.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.mysql.readinessProbe.periodSeconds }}
+            failureThreshold: {{ .Values.mysql.readinessProbe.failureThreshold }}
+
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - mysqladmin ping -h 127.0.0.1 -uroot -p"$MYSQL_ROOT_PASSWORD"
+
+            initialDelaySeconds: {{ .Values.mysql.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.mysql.livenessProbe.periodSeconds }}
+            failureThreshold: {{ .Values.mysql.livenessProbe.failureThreshold }}
+
+      volumes:
+        - name: mysql-data
+          persistentVolumeClaim:
+            claimName: {{ .Values.mysql.persistence.claimName }}
+
+        - name: mysql-init
+          configMap:
+            name: shop-mysql-init

@@ -1,0 +1,111 @@
+### Deployment ###
+
+deployment:
+  name: shop
+
+replicaCount: 2
+
+image:
+  repository: 356892573173.dkr.ecr.ap-northeast-2.amazonaws.com/ekseks-project-shop
+  tag: latest
+
+containerPort: 80
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+readinessProbe:
+  path: /
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  failureThreshold: 3
+
+livenessProbe:
+  path: /
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  failureThreshold: 3
+
+
+### Service ###
+
+service:
+  name: shop-service
+  type: ClusterIP
+  port: 80
+  portName: http
+
+
+### Ingress ###
+
+ingress:
+  name: shop-ingress
+  className: alb
+
+  annotations:
+    scheme: internet-facing
+    targetType: ip
+
+  path: /
+  pathType: Prefix
+
+
+### HPA ###
+
+hpa:
+  name: shop-hpa
+  minReplicas: 2
+  maxReplicas: 5
+  cpuUtilization: 50
+
+
+### Service Monitor ###
+
+serviceMonitor:
+  enabled: false
+  name: shop-servicemonitor
+  namespace: monitoring
+  releaseLabel: kube-prometheus-stack
+  targetNamespace: shop
+  appLabel: shop
+  path: /metrics
+  interval: 15s
+
+
+### MySQL ###
+
+mysql:
+  name: shop-mysql
+
+  image:
+    repository: mysql
+    tag: "8.0"
+    pullPolicy: IfNotPresent
+
+  database: shoppingmall
+  user: shoppinguser
+  password: shoppingpass
+  rootPassword: rootpass
+
+  service:
+    name: shop-mysql
+    port: 3306
+
+  persistence:
+    claimName: shop-mysql-pvc
+    size: 5Gi
+
+  readinessProbe:
+    initialDelaySeconds: 15
+    periodSeconds: 10
+    failureThreshold: 5
+
+  livenessProbe:
+    initialDelaySeconds: 30
+    periodSeconds: 20
+    failureThreshold: 5

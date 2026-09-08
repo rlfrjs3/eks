@@ -6,10 +6,10 @@ deployment:
 replicaCount: 2
 
 image:
-  repository: 356892573173.dkr.ecr.ap-northeast-2.amazonaws.com/ekseks-project-app
+  repository: 356892573173.dkr.ecr.ap-northeast-2.amazonaws.com/ekseks-project-flask
   tag: f926c025737bc2613c88e1917f8200806900f646
 
-containerPort: 8080
+containerPort: 80
 
 resources:
   requests:
