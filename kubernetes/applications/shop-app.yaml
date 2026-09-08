@@ -16,7 +16,7 @@ spec:
     targetRevision: main
     path: kubernetes/shop-chart
     
-    #ArgoCD가 helm 랜더링을 통해 flask-app을 만들고 배포
+    #ArgoCD가 helm 랜더링을 통해 shop-app을 만들고 배포
     helm:
       releaseName: shop-app
 

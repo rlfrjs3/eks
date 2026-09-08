@@ -1,0 +1,67 @@
+name: Shop CI (Build + ECR Push + Helm Values Update)
+
+# 언제 작동할 것인가? -> Github 사이트에서 [실행 버튼]을 누르면
+on:
+  workflow_dispatch:
+
+# Github Actions가 Git에 push 할 수 있도록 권한 부여
+permissions:
+  contents: write
+
+env:
+  AWS_REGION: ap-northeast-2
+  ECR_REPOSITORY: ekseks-project-shop
+
+jobs:
+  shop-ci:
+    runs-on: self-hosted
+
+    steps:
+    - name: 1. Github Repository Checkout
+      uses: actions/checkout@v4
+
+    - name: 2. AWS 인증
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_GEON }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_GEON }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: 3. 컨테이너 이미지 관련 환경변수 설정
+      run: |
+        AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+
+        echo "IMAGE_TAG=${GITHUB_SHA}" >> $GITHUB_ENV
+        echo "ECR_REGISTRY=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com" >> $GITHUB_ENV
+        echo "IMAGE_URI=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}" >> $GITHUB_ENV
+
+    - name: 4. ECR 로그인
+      run: |
+        aws ecr get-login-password --region ${AWS_REGION} | \
+        docker login \
+          --username AWS \
+          --password-stdin ${ECR_REGISTRY}
+
+    - name: 5. Shop 이미지 Build + ECR Push
+      run: |
+        docker build -t ${IMAGE_URI}:${IMAGE_TAG} ./shop
+        docker push ${IMAGE_URI}:${IMAGE_TAG}
+
+    - name: 6. shop-chart values.yaml 이미지 정보 변경
+      run: |
+        sed -i "s|^  repository: .*|  repository: ${IMAGE_URI}|" kubernetes/shop-chart/values.yaml
+        sed -i "s|^  tag: .*|  tag: ${IMAGE_TAG}|" kubernetes/shop-chart/values.yaml
+
+    - name: 7. 변경된 Shop Helm Values Git Push
+      run: |
+        git config user.name "github-actions"
+        git config user.email "github-actions@github.com"
+
+        git add kubernetes/shop-chart/values.yaml
+
+        git diff --cached --quiet || git commit -m "Update Shop image ${IMAGE_TAG}"
+
+        git pull --rebase origin main
+        git push origin HEAD:main
+```
+
