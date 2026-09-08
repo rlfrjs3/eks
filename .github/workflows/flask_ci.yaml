@@ -1,0 +1,72 @@
+name: Flask CI (Build + ECR Push + Helm Values Update)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  AWS_REGION: ap-northeast-2
+  ECR_REPOSITORY: ekseks-project-flask
+
+jobs:
+  flask-ci:
+    runs-on: self-hosted
+
+    steps:
+    - name: 1. Github Repository Checkout
+      uses: actions/checkout@v4
+
+    - name: 2. AWS 인증
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_GEON }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_GEON }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: 3. 이미지 관련 환경변수 설정
+      run: |
+        AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+
+        echo "IMAGE_TAG=${GITHUB_SHA}" >> $GITHUB_ENV
+        echo "ECR_REGISTRY=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com" >> $GITHUB_ENV
+        echo "IMAGE_URI=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}" >> $GITHUB_ENV
+
+    - name: 4. ECR 로그인
+      run: |
+        aws ecr get-login-password --region ${AWS_REGION} | \
+        docker login \
+          --username AWS \
+          --password-stdin ${ECR_REGISTRY}
+
+    - name: 5. Flask 이미지 Build + ECR Push
+      run: |
+        docker build \
+          -t ${IMAGE_URI}:${IMAGE_TAG} \
+          ./app
+
+        docker push ${IMAGE_URI}:${IMAGE_TAG}
+
+    - name: 6. flask-chart values.yaml 이미지 정보 변경
+      run: |
+        sed -i \
+          "s|^  repository: .*|  repository: ${IMAGE_URI}|" \
+          kubernetes/flask-chart/values.yaml
+
+        sed -i \
+          "s|^  tag: .*|  tag: ${IMAGE_TAG}|" \
+          kubernetes/flask-chart/values.yaml
+
+    - name: 7. 변경된 Flask Helm Values Git Push
+      run: |
+        git config user.name "github-actions"
+        git config user.email "github-actions@github.com"
+
+        git add kubernetes/flask-chart/values.yaml
+
+        git diff --cached --quiet || \
+          git commit -m "Update Flask image ${IMAGE_TAG}"
+
+        git pull --rebase origin main
+        git push origin HEAD:main

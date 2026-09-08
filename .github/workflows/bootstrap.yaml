@@ -1,4 +1,4 @@
-name: EKS Add-On 설치 + flask 애플리케이션 배포
+name: EKS 부트스트랩 설치 (ArgoCD + GitOps Application)
 
 
 #언제 작동할 것인가? -> 깃헙 사이트에서 [배포 버튼]을 누르면
@@ -10,8 +10,6 @@ permissions:
   contents: write
 
 env:
-  AWS_REGION: ap-northeast-2
-  ECR_REPOSITORY: ekseks-project-app
   EKS_CLUSTER_NAME: ekseks-project-eks
 
 jobs: 
@@ -59,31 +57,13 @@ jobs:
 
         sed -i "s|^vpcId: .*|vpcId: ${VPC_ID}|" ../kubernetes/values/aws-load-balancer-controller.yaml
         sed -i "s|^    eks.amazonaws.com/role-arn: .*|    eks.amazonaws.com/role-arn: ${LB_ROLE_ARN}|" ../kubernetes/values/aws-load-balancer-controller.yaml
-
-    - name: 8. 컨테이너 이미지 관련 환경변수 설정
-      run: | 
-        AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-        
-        echo "IMAGE_TAG=${GITHUB_SHA}" >> $GITHUB_ENV
-        echo "ECR_REGISTRY=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com" >> $GITHUB_ENV
-        echo "IMAGE_URI=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}" >> $GITHUB_ENV
          
-    - name: 9. ECR 로그인 + flask 이미지 빌드 +  ECR push + flask values.yaml 변경 (변경된 이미지 태그 적용)
-      run: |
-        aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY}
-
-        docker build -t ${IMAGE_URI}:${IMAGE_TAG} ../app
-        docker push ${IMAGE_URI}:${IMAGE_TAG}
-
-        sed -i "s|^  repository: .*|  repository: ${IMAGE_URI}|" ../kubernetes/flask-chart/values.yaml
-        sed -i "s|^  tag: .*|  tag: ${IMAGE_TAG}|" ../kubernetes/flask-chart/values.yaml
-
     - name: 10. 최종 - Git 수정된 파일 Push
       run: | 
         git config user.name "github-actions"
         git config user.email "github-actions@github.com"
-        git add ../kubernetes/values/aws-load-balancer-controller.yaml ../kubernetes/flask-chart/values.yaml
-        git diff --cached --quiet || git commit -m "Update bootstrap environment values"
+        git add ../kubernetes/values/aws-load-balancer-controller.yaml 
+        git diff --cached --quiet || git commit -m "Init bootstrap values push"
         git pull --rebase origin main
         git push origin HEAD:main
  
