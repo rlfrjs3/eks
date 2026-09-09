@@ -19,6 +19,6 @@ terraform {
 
 #리전
 provider "aws" {
-  region  = var.region
-#  profile = "geon"
+  region = var.region
+  #  profile = "geon"
 }

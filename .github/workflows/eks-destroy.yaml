@@ -37,32 +37,46 @@ jobs:
       run: | 
         aws eks update-kubeconfig --region ap-northeast-2 --name ekseks-project-eks
 
-    - name: 5. root-app & flask-app  자동 Sync 중지
+    - name: 5. root-app & flask-app & shop-app  자동 Sync 중지
       run: | 
         kubectl patch application root-app -n argocd --type merge -p '{"spec":{"syncPolicy":{"automated":null}}}'
         kubectl patch application flask-app -n argocd --type merge -p '{"spec":{"syncPolicy":{"automated":null}}}'
+        kubectl patch application shop-app -n argocd --type merge -p '{"spec":{"syncPolicy":{"automated":null}}}'
 
     - name: 6. flask Ingress 삭제 및 ALB 삭제 대기
       run: |
-        ALB_DNS=$(kubectl get ingress flask-ingress -n flask -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
-        ALB_ARN=$(aws elbv2 describe-load-balancers --query "LoadBalancers[?DNSName=='${ALB_DNS}'].LoadBalancerArn | [0]" --output text)
-        echo "삭제 ALB ARN: $ALB_ARN"
+        FLASK_ALB_DNS=$(kubectl get ingress flask-ingress -n flask -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+        FLASK_ALB_ARN=$(aws elbv2 describe-load-balancers --query "LoadBalancers[?DNSName=='${FLASK_ALB_DNS}'].LoadBalancerArn | [0]" --output text)
+        echo "삭제 FLASK_ALB ARN: $FLASK_ALB_ARN"
 
 
         kubectl delete ingress flask-ingress -n flask --ignore-not-found=true --wait=false
 
-        if [ "$ALB_ARN" != "None" ] && [ -n "$ALB_ARN" ]; then
-          aws elbv2 wait load-balancers-deleted --load-balancer-arns "$ALB_ARN"
+        if [ "$FLASK_ALB_ARN" != "None" ] && [ -n "$FLASK_ALB_ARN" ]; then
+          aws elbv2 wait load-balancers-deleted --load-balancer-arns "$FLASK_ALB_ARN"
         fi
 
-    - name: 7. 테라폼 초기화 (init)
+    - name: 7. shop Ingress  삭제 및 ALB 삭제 대기
+      run: |
+        SHOP_ALB_DNS=$(kubectl get ingress shop-ingress -n shop -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+        SHOP_ALB_ARN=$(aws elbv2 describe-load-balancers --query "LoadBalancers[?DNSName=='${SHOP_ALB_DNS}'].LoadBalancerArn | [0]" --output text)
+        echo "삭제 SHOP_ALB ARN: $SHOP_ALB_ARN"
+
+
+        kubectl delete ingress shop-ingress -n shop --ignore-not-found=true --wait=false
+
+        if [ "$SHOP_ALB_ARN" != "None" ] && [ -n "$SHOP_ALB_ARN" ]; then
+          aws elbv2 wait load-balancers-deleted --load-balancer-arns "$SHOP_ALB_ARN"
+        fi
+
+    - name: 8. 테라폼 초기화 (init)
       run: | 
         terraform init
  
-    - name: 8. 테라폼 배포 계획 확인 (plan)
+    - name: 9. 테라폼 배포 계획 확인 (plan)
       run: | 
         terraform plan -destroy -out=destroy_plan
  
-    - name: 9. 테라폼 실제 배포 (apply)
+    - name: 10. 테라폼 실제 배포 (apply)
       run: | 
         terraform apply -auto-approve destroy_plan

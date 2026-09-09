@@ -76,29 +76,7 @@ resource "aws_iam_role_policy_attachment" "ecr_pull_policy" {
 
 
 
-
-###########################################################################################################################
-###################<CNI가 띄워진 파드에서만 AmazonEKS_CNI_Policy 정책을 부여하기 위한 작업>################################
-###########################################################################################################################
-
-#AWS IAM과 EKS serviceaccount는 서로 다른 시스템의 인증 체계인데, 이 둘을 연결하는 것을 IRSA라고 하고, 이 때 사용하는 신뢰방법을 OIDC라고 함#
-
-#->1. AWS IAM에 OIDC provider를 등록하는데, 이 때 EKS 클러스터의 OIDC Issuer 정보가 필요 -> 이로서 둘이 연결이 됨
-#->2. EKS 아무 serviceaccount에서 접근하게끔 권한을 부여하면 안되기 때문에 특정 serviceaccount만 접근할 수 있는 Trust 정책을 먼저 생성함 (kube-system 네임스페이스고, aws-node라는 serviceaccount 값을 가진 파드만 이라는 내용)
-#->3. 그리고 Role을 만들고 2번 정책을 연결
-#->4. 추가적으로 3번 Role에다가 AmazonEKS_CNI_Policy 정책 추가 연결
-#->5. EKS CNI 애드온 리소스를 별도 만드는데 앞서 만든 Role을 연결
-
-
-
-#####[참고] IAM Role에 Permission 정칙과 Trust 정책을 연결하는 로직은 다음과 같음#####
-#1. aws_iam_policy_document 으로 Trust 정책 생성
-#2. Role을 만들면서 앞서 만든 Trust 정책 연결
-#3. 마지막으로 Permission 정책까지 연결 
-
-
-
-
+###################<VPC CNI가 띄워진 파드에서만 AmazonEKS_CNI_Policy 정책을 부여하기 위한 작업>################################
 
 #EKS 클러스터의 OIDC Issuer 인증서 정보 조회
 data "tls_certificate" "eks" {
@@ -204,24 +182,7 @@ resource "aws_eks_addon" "vpc_cni" {
 
 
 
-###########################################################################################################################
 ###########<AWS LB 컨트롤러 파드가 AWS ALB (리스너, 타겟그룹)를 조회/생성/수정할 수 있도록 하기 위한 작업>#################
-###########################################################################################################################
-
-#AmazonEKS_CNI 정책과 동일한 IRSA 방식과 OIDC 프로바이더를 사용함
-
-
-
-#####[참고] IAM Role에 Permission 정칙과 Trust 정책을 연결하는 로직은 다음과 같음#####
-#1. aws_iam_policy_document 으로 Trust 정책 생성
-#2. Role을 만들면서 앞서 만든 Trust 정책 연결
-#3. 마지막으로 Permission 정책까지 연결
-
-#(근데 여기서는 Permission 정책을 AmazonEKS_CNI처럼 있는 것 그대로 쓰는게 아니라, json 파일로 가져와서 새로 생성하는 작업이 다른 것 뿐임)
-
-
-
-
 
 #AWS Load Balancer Controller가 AWS 리소스를 생성/조회/수정할 수 있도록 Permission Policy 생성
 resource "aws_iam_policy" "aws_load_balancer_controller_policy" {
@@ -299,3 +260,87 @@ resource "aws_iam_role_policy_attachment" "aws_load_balancer_controller_policy_a
 
 
 
+
+
+###########<EBS CSI 컨트롤러 파드가 EBS를 자동 프로비저닝 할 수 있도록 하기 위한 작업>#################
+
+# EBS CSI Driver IAM Role의 Trust Policy 생성
+# kube-system 네임스페이스의 ebs-csi-controller-sa만
+# 해당 IAM Role을 사용할 수 있도록 제한
+data "aws_iam_policy_document" "ebs_csi_assume_role_policy" {
+  statement {
+    effect = "Allow"
+
+    actions = [
+      "sts:AssumeRoleWithWebIdentity"
+    ]
+
+    principals {
+      type = "Federated"
+
+      identifiers = [
+        aws_iam_openid_connect_provider.eks.arn
+      ]
+    }
+
+    condition {
+      test = "StringEquals"
+
+      variable = "${replace(
+        aws_iam_openid_connect_provider.eks.url,
+        "https://",
+        ""
+      )}:aud"
+
+      values = [
+        "sts.amazonaws.com"
+      ]
+    }
+
+    condition {
+      test = "StringEquals"
+
+      variable = "${replace(
+        aws_iam_openid_connect_provider.eks.url,
+        "https://",
+        ""
+      )}:sub"
+
+      values = [
+        "system:serviceaccount:kube-system:ebs-csi-controller-sa"
+      ]
+    }
+  }
+}
+
+
+# EBS CSI Driver 전용 IAM Role 생성
+# 위 Trust Policy를 적용하여 EBS CSI Controller만 Role을 사용할 수 있도록 구성
+resource "aws_iam_role" "ebs_csi_role" {
+  name = "${var.project_name}-ebs-csi-role"
+
+  assume_role_policy = data.aws_iam_policy_document.ebs_csi_assume_role_policy.json
+}
+
+
+# EBS CSI Driver가 EBS Volume 생성/삭제/연결 등의
+# AWS API를 호출할 수 있도록 Permission Policy 연결
+resource "aws_iam_role_policy_attachment" "ebs_csi_policy" {
+  role = aws_iam_role.ebs_csi_role.name
+
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEBSCSIDriverPolicyV2"
+}
+
+
+# AWS EBS CSI Driver를 EKS Add-on으로 설치
+# 생성한 IAM Role을 ebs-csi-controller-sa에 연결하여 IRSA 구성
+resource "aws_eks_addon" "ebs_csi" {
+  cluster_name = var.eks_cluster_name
+  addon_name   = "aws-ebs-csi-driver"
+
+  service_account_role_arn = aws_iam_role.ebs_csi_role.arn
+
+  depends_on = [
+    aws_iam_role_policy_attachment.ebs_csi_policy
+  ]
+}

@@ -5,6 +5,8 @@ metadata:
   name: {{ .Values.mysql.persistence.claimName }}
 
 spec:
+  storageClassName: {{ .Values.mysql.persistence.storageClassName }}
+
   accessModes:
     - ReadWriteOnce
 
