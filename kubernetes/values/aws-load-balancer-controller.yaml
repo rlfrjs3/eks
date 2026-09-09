@@ -1,6 +1,6 @@
 clusterName: ekseks-project-eks
 region: ap-northeast-2
-vpcId: vpc-03ef7d3a5bc1c1504
+vpcId: vpc-096e9477d132236fb
 
 serviceAccount:
   create: true
