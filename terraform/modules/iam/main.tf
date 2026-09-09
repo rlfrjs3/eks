@@ -67,7 +67,7 @@ resource "aws_iam_role_policy_attachment" "eks_worker_node_policy" {
   role       = aws_iam_role.eks_node_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
 }
-한
+
 # 앞서 만든 EKS Worker Node IAM Role에 AmazonEC2ContainerRegistryPullOnly AWS 관리형 권한정책 연결 -> 워커노드가 ECR에서 이미지를 pull해서 가져오기 위한 권한
 resource "aws_iam_role_policy_attachment" "ecr_pull_policy" {
   role       = aws_iam_role.eks_node_role.name
