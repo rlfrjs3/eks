@@ -1,4 +1,8 @@
-###EKS 클러스터 Role 생성(현재는 안에 정책이 연결되지 않은 껍데기 상태) ->  EKS 클러스터 생성 시, 이 역할을 부여해서 만듬
+#############################################
+######## EKS Control Plane IAM Role #########
+#############################################
+
+# EKS CP가 사용할 IAM Role 생성 (신뢰정책 포함 : EKS(eks.amazonaws.com)가 이 Role을 assume할 수 있도록 허용)
 resource "aws_iam_role" "eks_cluster_role" {
   name = "${var.project_name}-eks-cluster-role"
 
@@ -21,7 +25,7 @@ resource "aws_iam_role" "eks_cluster_role" {
   tags = { Name = "${var.project_name}-eks-cluster-role" }
 }
 
-###위에서 만든 Role에 아래 정책을 연결 -> AmazonEKSClusterPolicy : EKS Cluster가 AWS 리소스에 접근할 수 있도록
+# 앞서 만든 EKS Control Plane IAM Role에 AWS 관리형 권한정책 연결
 resource "aws_iam_role_policy_attachment" "eks_cluster_policy" {
   role       = aws_iam_role.eks_cluster_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
@@ -31,9 +35,11 @@ resource "aws_iam_role_policy_attachment" "eks_cluster_policy" {
 
 
 
+#############################################
+###### EKS Worker Node (EC2) IAM Role #######
+#############################################
 
-
-###워커노드 Role 생성 (현재는 안에 정책이 연결되지 않은 껍데기 상태) -> 워커노드 그룹 생성 시, 이 역할을 부여해서 만듬
+# EKS Worker Node가 사용할 IAM Role 생성 (신뢰정책 포함 : EC2(ec2.amazonaws.com)가 이 Role을 assume할 수 있도록 허용)
 resource "aws_iam_role" "eks_node_role" {
   name = "${var.project_name}-eks-node-role"
 
@@ -56,14 +62,13 @@ resource "aws_iam_role" "eks_node_role" {
   tags = { Name = "${var.project_name}-eks-node-role" }
 }
 
-###위에서 만든 Role에 아래 정책 2개를 연결 -> AmazonEKSWorkerNodePolicy와 AmazonEC2ContainerRegistryPullOnly
-#AmazonEKSWorkerNodePolicy : 워커노드가 EKS와 통신하기 위한 권한
-#AmazonEC2ContainerRegistryPullOnly : 워커노드가 ECR에서 이미지를 pull해서 가져오기 위한 권한
+# 앞서 만든 EKS Worker Node IAM Role에 AmazonEKSWorkerNodePolicy AWS 관리형 권한정책 연결 -> 워커노드가 EKS Control Plane과 통신하기 위한 권한
 resource "aws_iam_role_policy_attachment" "eks_worker_node_policy" {
   role       = aws_iam_role.eks_node_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
 }
-
+한
+# 앞서 만든 EKS Worker Node IAM Role에 AmazonEC2ContainerRegistryPullOnly AWS 관리형 권한정책 연결 -> 워커노드가 ECR에서 이미지를 pull해서 가져오기 위한 권한
 resource "aws_iam_role_policy_attachment" "ecr_pull_policy" {
   role       = aws_iam_role.eks_node_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPullOnly"
@@ -73,17 +78,16 @@ resource "aws_iam_role_policy_attachment" "ecr_pull_policy" {
 
 
 
+#############################################
+##### EKS OIDC Provider (IRSA 인증 기반)#####
+#############################################
 
-
-
-###################<VPC CNI가 띄워진 파드에서만 AmazonEKS_CNI_Policy 정책을 부여하기 위한 작업>################################
-
-#EKS 클러스터의 OIDC Issuer 인증서 정보 조회
+# EKS 클러스터의 OIDC Issuer TLS 인증서 정보 조회 -> AWS IAM에 OIDC Provider를 등록할 때 필요
 data "tls_certificate" "eks" {
   url = var.eks_oidc_issuer_url
 }
 
-#AWS IAM에 EKS OIDC Provider 등록
+# EKS 클러스터의 OIDC Issuer를 AWS IAM OIDC Provider로 등록 -> EKS ServiceAccount의 OIDC 토큰을 AWS STS가 신뢰할 수 있도록 하기 위한 IRSA 인증 기반 구성
 resource "aws_iam_openid_connect_provider" "eks" {
   url = var.eks_oidc_issuer_url
 
@@ -101,7 +105,16 @@ resource "aws_iam_openid_connect_provider" "eks" {
 }
 
 
-#인증이 됐으므로 이제 CNI Role에 연결할 Trust 정책(누가 사용할 지)  생성 ( kube-system 네임스페이스이고 aws-node serviceaccount 값을 가진 파드만 이 정책을 사용할 수 있음)
+
+
+
+#############################################
+############## VPC CNI IRSA #################
+#############################################
+
+# VPC CNI 전용 IAM Role의 신뢰정책 생성 -> EKS OIDC Provider를 통해 인증된 EKS ServiceAccount 중 kube-system 네임스페이스의 aws-node ServiceAccount만 해당 IAM Role에 assume할 수 있도록 제한
+# aud : STS를 대상으로 발급한 토큰인지 확인
+# sub : 특정 네임스페이스 + ServiceAccount인지 확인
 data "aws_iam_policy_document" "eks_cni_assume_role_policy" {
   statement {
     effect = "Allow"
@@ -148,23 +161,20 @@ data "aws_iam_policy_document" "eks_cni_assume_role_policy" {
   }
 }
 
-
-#CNI Role 생성하여 앞서 만든 신뢰 정책 할당 
+# VPC CNI 전용 IAM Role 생성 (앞서 만든 신뢰정책을 적용)
 resource "aws_iam_role" "eks_cni_role" {
   name = "${var.project_name}-eks-cni-role"
 
   assume_role_policy = data.aws_iam_policy_document.eks_cni_assume_role_policy.json
 }
 
-
-#추가로 AmazonEKS_CNI_Policy -> Permission 정책까지 연결
+# VPC CNI IAM Role에 AmazonEKS_CNI_Policy AWS 관리형 권한정책 연결 -> VPC CNI가 Pod 네으퉈크 구성할 때, ENI 및 사설IP 등 EC2 네트워크 리소스를 관리할 수 있도록 권한
 resource "aws_iam_role_policy_attachment" "eks_cni_policy" {
   role       = aws_iam_role.eks_cni_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
 }
 
-
-#VPC CNI 애드온 서비스를 생성하는데 앞서 만든 CNI Role을 지정하여 생성
+# VPC CNI를 EKS Managed Add-on 으로 구성 
 resource "aws_eks_addon" "vpc_cni" {
   cluster_name = var.eks_cluster_name
   addon_name   = "vpc-cni"
@@ -178,20 +188,18 @@ resource "aws_eks_addon" "vpc_cni" {
 
 
 
+#############################################
+######## AWS LB Controller IRSA  ############
+#############################################
 
-
-
-
-###########<AWS LB 컨트롤러 파드가 AWS ALB (리스너, 타겟그룹)를 조회/생성/수정할 수 있도록 하기 위한 작업>#################
-
-#AWS Load Balancer Controller가 AWS 리소스를 생성/조회/수정할 수 있도록 Permission Policy 생성
+# AWS LB Controller 전용 권한정책 생성 -> Controller가 ALB, 리스너, 타겟그룹, SG 등 필요한 AWS 리소스를 생성/조회/수정/삭제할 수 있도록 정의
 resource "aws_iam_policy" "aws_load_balancer_controller_policy" {
   name = "${var.project_name}-aws-load-balancer-controller-policy"
 
   policy = file("${path.module}/aws-load-balancer-controller-iam-policy.json")
 }
 
-#신뢰 정책 생성(kube-system 네임스페이스이고, serviceaccount는 aws-load-balancer-controller인 것만 파드만 사용 가능)
+# AWS LB Controller 전용 신뢰정책 생성 -> EKS OID Provider를 통해 인증된 kube-system 네임스페이스의 aws-load-balancer-controller ServiceAccount만 해당 IAM Role에 Assume할 수 있도록 
 data "aws_iam_policy_document" "aws_load_balancer_controller_assume_role_policy" {
   statement {
     effect = "Allow"
@@ -238,7 +246,7 @@ data "aws_iam_policy_document" "aws_load_balancer_controller_assume_role_policy"
   }
 }
 
-#iam Role을 만들고 신뢰 정책 붙이기
+# AWS LB Controller 전용 IAM Role 생성하고 앞서 만든 신뢰정책 연결 
 resource "aws_iam_role" "aws_load_balancer_controller_role" {
   name = "${var.project_name}-aws-load-balancer-controller-role"
 
@@ -249,7 +257,7 @@ resource "aws_iam_role" "aws_load_balancer_controller_role" {
   }
 }
 
-#마지막으로 맨 처음 만든 Permission Policy 붙이기 
+# 마지막으로 AWS LB Controller 전용 IAM Role에 권한정책 연결
 resource "aws_iam_role_policy_attachment" "aws_load_balancer_controller_policy_attachment" {
   role       = aws_iam_role.aws_load_balancer_controller_role.name
   policy_arn = aws_iam_policy.aws_load_balancer_controller_policy.arn
@@ -259,14 +267,11 @@ resource "aws_iam_role_policy_attachment" "aws_load_balancer_controller_policy_a
 
 
 
+#############################################
+########## EBS CSI Driver IRSA  #############
+#############################################
 
-
-
-###########<EBS CSI 컨트롤러 파드가 EBS를 자동 프로비저닝 할 수 있도록 하기 위한 작업>#################
-
-# EBS CSI Driver IAM Role의 Trust Policy 생성
-# kube-system 네임스페이스의 ebs-csi-controller-sa만
-# 해당 IAM Role을 사용할 수 있도록 제한
+# EBS CSI Driver Controller 전용 신뢰정책 생성 -> EKS OIDC Provider를 통해 인증된 kube-system 네임스페이스의 ebs-csi-controller-sa ServiceAccount만 해당 IAM Role에 assume할 수 있도록
 data "aws_iam_policy_document" "ebs_csi_assume_role_policy" {
   statement {
     effect = "Allow"
@@ -313,18 +318,14 @@ data "aws_iam_policy_document" "ebs_csi_assume_role_policy" {
   }
 }
 
-
-# EBS CSI Driver 전용 IAM Role 생성
-# 위 Trust Policy를 적용하여 EBS CSI Controller만 Role을 사용할 수 있도록 구성
+# EBS CSI Driver Controller 전용 IAM Role 생성하고 앞서 만든 신뢰정책 연결
 resource "aws_iam_role" "ebs_csi_role" {
   name = "${var.project_name}-ebs-csi-role"
 
   assume_role_policy = data.aws_iam_policy_document.ebs_csi_assume_role_policy.json
 }
 
-
-# EBS CSI Driver가 EBS Volume 생성/삭제/연결 등의
-# AWS API를 호출할 수 있도록 Permission Policy 연결
+# EBS CSI Driver Controller 전용 IAM Role에 AWS 관리형 권한정책AmazonEBSCSIDriverPolicyV2 연결 -> EBS CSI Controller가 PVC 요청에 따라 EBS 볼륨을 생성/조회/삭제/Attach/Detach하는데 필요한 AWS API 권한 제공
 resource "aws_iam_role_policy_attachment" "ebs_csi_policy" {
   role = aws_iam_role.ebs_csi_role.name
 
@@ -332,8 +333,8 @@ resource "aws_iam_role_policy_attachment" "ebs_csi_policy" {
 }
 
 
-# AWS EBS CSI Driver를 EKS Add-on으로 설치
-# 생성한 IAM Role을 ebs-csi-controller-sa에 연결하여 IRSA 구성
+# AWS EBS CSI Driver를 EKS Managed Add-on으로 설치
+# 생성한 IAM Role을 ebs-csi-controller-sa에 연결하여 IRSA 구성공
 resource "aws_eks_addon" "ebs_csi" {
   cluster_name = var.eks_cluster_name
   addon_name   = "aws-ebs-csi-driver"

@@ -11,7 +11,7 @@ env:
 
 
 jobs: 
-  terraform-destroy:
+  eks-destroy:
     #runs-on: ubuntu-latest
     runs-on: self-hosted
 
