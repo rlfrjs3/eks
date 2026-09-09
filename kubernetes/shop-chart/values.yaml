@@ -98,7 +98,7 @@ mysql:
 
   persistence:
     claimName: shop-mysql-pvc
-    storageClassName: gp2
+    storageClassName: ebs-gp3
     size: 5Gi
 
   readinessProbe:
