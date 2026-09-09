@@ -7,7 +7,7 @@ replicaCount: 2
 
 image:
   repository: 356892573173.dkr.ecr.ap-northeast-2.amazonaws.com/ekseks-project-shop
-  tag: 6e7c3a0dfe251fcedd1e91efcae1f5f7c43d64bb
+  tag: e39b0452042149135cb948d67a6476ac7759229e
 
 containerPort: 80
 
