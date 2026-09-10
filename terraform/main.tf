@@ -14,7 +14,6 @@ module "network" {
 module "iam" {
   source              = "./modules/iam"
   project_name        = var.project_name
-  eks_cluster_name    = module.eks.eks_cluster_name
   eks_oidc_issuer_url = module.eks.oidc_issuer_url
 }
 
@@ -24,9 +23,13 @@ module "eks" {
   private_subnet_ids   = module.network.private_subnet_ids
   eks_cluster_role_arn = module.iam.eks_cluster_role_arn
   eks_node_role_arn    = module.iam.eks_node_role_arn
+  eks_cni_role_arn     = module.iam.eks_cni_role_arn
+  ebs_csi_role_arn     = module.iam.ebs_csi_role_arn
 }
 
 module "ecr" {
   source       = "./modules/ecr"
   project_name = var.project_name
 }
+
+

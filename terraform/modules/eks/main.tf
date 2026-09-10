@@ -11,9 +11,7 @@ resource "aws_eks_cluster" "eks_cluster" {
 
 
 
-
-
-#워커노드 그룹 
+#워커노드 그룹 생성
 resource "aws_eks_node_group" "eks_node_group" {
   cluster_name    = aws_eks_cluster.eks_cluster.name
   node_group_name = "${var.project_name}-node-group"
@@ -33,3 +31,24 @@ resource "aws_eks_node_group" "eks_node_group" {
 
   depends_on = [aws_eks_cluster.eks_cluster]
 }
+
+
+
+# VPC CNI를 EKS Managed Add-on 으로 설치 - iam 모듈에서 만든 VPC CNI 전용 IAM Role 연결
+resource "aws_eks_addon" "vpc_cni" {
+  cluster_name = aws_eks_cluster.eks_cluster.name
+  addon_name   = "vpc-cni"
+
+  service_account_role_arn = var.eks_cni_role_arn
+}
+
+
+
+# AWS EBS CSI Driver를 EKS Managed Add-on으로 설치 - iam 모듈에서 만든 EBS CSI 전용 IAM Role 연결
+resource "aws_eks_addon" "ebs_csi" {
+  cluster_name = aws_eks_cluster.eks_cluster.name
+  addon_name   = "aws-ebs-csi-driver"
+
+  service_account_role_arn = var.ebs_csi_role_arn
+}
+

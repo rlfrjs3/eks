@@ -175,14 +175,14 @@ resource "aws_iam_role_policy_attachment" "eks_cni_policy" {
 }
 
 # VPC CNI를 EKS Managed Add-on 으로 구성 
-resource "aws_eks_addon" "vpc_cni" {
-  cluster_name = var.eks_cluster_name
-  addon_name   = "vpc-cni"
+#resource "aws_eks_addon" "vpc_cni" {
+#  cluster_name = var.eks_cluster_name
+#  addon_name   = "vpc-cni"
 
-  service_account_role_arn = aws_iam_role.eks_cni_role.arn
+#  service_account_role_arn = aws_iam_role.eks_cni_role.arn
 
-  depends_on = [aws_iam_role_policy_attachment.eks_cni_policy]
-}
+#  depends_on = [ aws_iam_role_policy_attachment.eks_cni_policy ] 
+#}
 
 
 
@@ -335,13 +335,11 @@ resource "aws_iam_role_policy_attachment" "ebs_csi_policy" {
 
 # AWS EBS CSI Driver를 EKS Managed Add-on으로 설치
 # 생성한 IAM Role을 ebs-csi-controller-sa에 연결하여 IRSA 구성공
-resource "aws_eks_addon" "ebs_csi" {
-  cluster_name = var.eks_cluster_name
-  addon_name   = "aws-ebs-csi-driver"
+#resource "aws_eks_addon" "ebs_csi" {
+#  cluster_name = var.eks_cluster_name
+#  addon_name   = "aws-ebs-csi-driver"
 
-  service_account_role_arn = aws_iam_role.ebs_csi_role.arn
+#  service_account_role_arn = aws_iam_role.ebs_csi_role.arn
 
-  depends_on = [
-    aws_iam_role_policy_attachment.ebs_csi_policy
-  ]
-}
+#  depends_on = [ aws_iam_role_policy_attachment.ebs_csi_policy ]
+#}
