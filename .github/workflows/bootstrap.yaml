@@ -58,7 +58,7 @@ jobs:
         sed -i "s|^vpcId: .*|vpcId: ${VPC_ID}|" ../kubernetes/values/aws-load-balancer-controller.yaml
         sed -i "s|^    eks.amazonaws.com/role-arn: .*|    eks.amazonaws.com/role-arn: ${LB_ROLE_ARN}|" ../kubernetes/values/aws-load-balancer-controller.yaml
          
-    - name: 10. 최종 - Git 수정된 파일 Push
+    - name: 8. 최종 - Git 수정된 파일 Push
       run: | 
         git config user.name "github-actions"
         git config user.email "github-actions@github.com"
@@ -67,6 +67,6 @@ jobs:
         git pull --rebase origin main
         git push origin HEAD:main
  
-    - name: 11. ArgoCD + Git 연동 (부트스트랩 설치)
+    - name: 9. ArgoCD + Git 연동 (부트스트랩 설치)
       run: | 
         kubectl apply -f ../kubernetes/bootstrap/root-app.yaml
