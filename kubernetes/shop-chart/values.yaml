@@ -89,8 +89,8 @@ mysql:
 
   database: shoppingmall
   user: shoppinguser
-  password: shoppingpass
-  rootPassword: rootpass
+  #password: shoppingpass
+  #rootPassword: rootpass
 
   service:
     name: shop-mysql

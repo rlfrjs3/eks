@@ -35,22 +35,19 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: shop-mysql-secret
-                  key: MYSQL_ROOT_PASSWORD
+                  key: rootPassword
 
             - name: MYSQL_DATABASE
               value: {{ .Values.mysql.database | quote }}
 
             - name: MYSQL_USER
-              valueFrom:
-                secretKeyRef:
-                  name: shop-mysql-secret
-                  key: MYSQL_USER
+              value: {{ .Values.mysql.user | quote }}
 
             - name: MYSQL_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: shop-mysql-secret
-                  key: MYSQL_PASSWORD
+                  key: password
 
           volumeMounts:
             - name: mysql-data

@@ -3,3 +3,4 @@ output "eks_node_role_arn" { value = aws_iam_role.eks_node_role.arn }
 output "aws_load_balancer_controller_role_arn" { value = aws_iam_role.aws_load_balancer_controller_role.arn }
 output "eks_cni_role_arn" { value = aws_iam_role.eks_cni_role.arn }
 output "ebs_csi_role_arn" { value = aws_iam_role.ebs_csi_role.arn }
+output "external_secrets_role_arn" { value = aws_iam_role.external_secrets_role.arn }

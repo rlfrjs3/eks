@@ -34,7 +34,16 @@ resource "aws_eks_node_group" "eks_node_group" {
 
 
 
-# VPC CNI를 EKS Managed Add-on 으로 설치 - iam 모듈에서 만든 VPC CNI 전용 IAM Role 연결
+
+
+
+#############################################
+########### EKS Managed Add-on ##############
+#############################################
+
+
+
+# VPC CNI 설치 - iam 모듈에서 만든 VPC CNI 전용 IAM Role 연결
 resource "aws_eks_addon" "vpc_cni" {
   cluster_name = aws_eks_cluster.eks_cluster.name
   addon_name   = "vpc-cni"
@@ -44,7 +53,7 @@ resource "aws_eks_addon" "vpc_cni" {
 
 
 
-# AWS EBS CSI Driver를 EKS Managed Add-on으로 설치 - iam 모듈에서 만든 EBS CSI 전용 IAM Role 연결
+# AWS EBS CSI Driver 설치 - iam 모듈에서 만든 EBS CSI 전용 IAM Role 연결
 resource "aws_eks_addon" "ebs_csi" {
   cluster_name = aws_eks_cluster.eks_cluster.name
   addon_name   = "aws-ebs-csi-driver"
@@ -52,3 +61,26 @@ resource "aws_eks_addon" "ebs_csi" {
   service_account_role_arn = var.ebs_csi_role_arn
 }
 
+
+
+# Pod Identity Agent 설치 - Pod Identity Agent에는 별도 Role이 필요하지 않고 워커노드 그룹 Role을 사용함 (해당 Role 에 있는 AmazonEKSWorkerNodePolicy 권한정책에 필요로 하는 권한이 다 있음)
+resource "aws_eks_addon" "pod_identity_agent" {
+  cluster_name = aws_eks_cluster.eks_cluster.name
+  addon_name   = "eks-pod-identity-agent"
+}
+
+
+
+
+
+################################################################
+##### External Secrets Operator - Pod Identity Association #####
+################################################################
+
+#External Secrets Operator가 사용하는 ServiceAccount와 IAM 모듈에서 만든 전용 Role을 연결 - IRSA에서는 신뢰정책에 넣는 설정을 Pod Identity를 사용하면 Pod Identity Associate을 별도로 만들어줘야 함
+resource "aws_eks_pod_identity_association" "external_secrets" {
+  cluster_name    = aws_eks_cluster.eks_cluster.name
+  namespace       = "external-secrets"
+  service_account = "external-secrets"
+  role_arn        = var.external_secrets_role_arn
+}

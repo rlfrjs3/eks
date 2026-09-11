@@ -109,7 +109,7 @@ resource "aws_iam_openid_connect_provider" "eks" {
 
 
 #############################################
-############## VPC CNI IRSA #################
+############# VPC CNI - IRSA ################
 #############################################
 
 # VPC CNI 전용 IAM Role의 신뢰정책 생성 -> EKS OIDC Provider를 통해 인증된 EKS ServiceAccount 중 kube-system 네임스페이스의 aws-node ServiceAccount만 해당 IAM Role에 assume할 수 있도록 제한
@@ -174,22 +174,12 @@ resource "aws_iam_role_policy_attachment" "eks_cni_policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
 }
 
-# VPC CNI를 EKS Managed Add-on 으로 구성 
-#resource "aws_eks_addon" "vpc_cni" {
-#  cluster_name = var.eks_cluster_name
-#  addon_name   = "vpc-cni"
-
-#  service_account_role_arn = aws_iam_role.eks_cni_role.arn
-
-#  depends_on = [ aws_iam_role_policy_attachment.eks_cni_policy ] 
-#}
-
 
 
 
 
 #############################################
-######## AWS LB Controller IRSA  ############
+####### AWS LB Controller - IRSA  ###########
 #############################################
 
 # AWS LB Controller 전용 권한정책 생성 -> Controller가 ALB, 리스너, 타겟그룹, SG 등 필요한 AWS 리소스를 생성/조회/수정/삭제할 수 있도록 정의
@@ -268,7 +258,7 @@ resource "aws_iam_role_policy_attachment" "aws_load_balancer_controller_policy_a
 
 
 #############################################
-########## EBS CSI Driver IRSA  #############
+######### EBS CSI Driver - IRSA  ############
 #############################################
 
 # EBS CSI Driver Controller 전용 신뢰정책 생성 -> EKS OIDC Provider를 통해 인증된 kube-system 네임스페이스의 ebs-csi-controller-sa ServiceAccount만 해당 IAM Role에 assume할 수 있도록
@@ -333,13 +323,72 @@ resource "aws_iam_role_policy_attachment" "ebs_csi_policy" {
 }
 
 
-# AWS EBS CSI Driver를 EKS Managed Add-on으로 설치
-# 생성한 IAM Role을 ebs-csi-controller-sa에 연결하여 IRSA 구성공
-#resource "aws_eks_addon" "ebs_csi" {
-#  cluster_name = var.eks_cluster_name
-#  addon_name   = "aws-ebs-csi-driver"
 
-#  service_account_role_arn = aws_iam_role.ebs_csi_role.arn
 
-#  depends_on = [ aws_iam_role_policy_attachment.ebs_csi_policy ]
-#}
+
+##############################################################
+####### External Secrets Operator - Pod Identity  ############
+##############################################################
+
+# AWS Secret Manager에서 MySQL 민감정보 가져오기 (이미 생성되어 있어야 함)
+data "aws_secretsmanager_secret" "shop_mysql" {
+  name = "shop/mysql"
+}
+
+# External Secrets Operator 전용 권한정책 생성 -> 앞서 가져온 MySQL 민감정보 secret 하나만 조회할 수 있는 권한
+resource "aws_iam_policy" "external_secrets_policy" {
+  name = "${var.project_name}-external-secrets-policy"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+  
+    Statement = [
+      { 
+        Sid	= "ReadShopMysqlSecret"
+        Effect  = "Allow"
+ 
+        Action = [
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:DescribeSecret"
+        ] 
+
+        Resource = data.aws_secretsmanager_secret.shop_mysql.arn  #앞서 가져온 secret 정보
+      }
+    ]
+  })
+}
+
+# External Secrets Operator 전용 신뢰정책 생성 - IRSA 방식에서는 SA를 신뢰정책에 설정했는데, Pod Identity 방식에서는 aws_eks_pod_identity_association에서 별도로 구성
+data "aws_iam_policy_document" "external_secrets_pod_identity_assume_role" {
+
+  statement {
+    sid    = "AllowEksAuthToAssumeRoleForPodIdentity"
+    effect = "Allow"
+
+    principals {
+      type = "Service"
+
+      identifiers = [
+        "pods.eks.amazonaws.com"    #EKS Pod Identity를 통해 IAM Role을 사용할 수 있도록
+      ]
+    }
+
+    actions = [
+      "sts:AssumeRole",
+      "sts:TagSession"
+    ]
+  }
+}
+
+# External Secrets Operator 전용 IAM Role 생성하고 앞서 만든 신뢰정책 연결 
+resource "aws_iam_role" "external_secrets_role" {
+  name = "${var.project_name}-external-secrets-role"
+
+  assume_role_policy = data.aws_iam_policy_document.external_secrets_pod_identity_assume_role.json
+}
+
+# 최종적으로 IAM Role(신뢰정책 연결되어 있음)에 권한정책 연결
+resource "aws_iam_role_policy_attachment" "external_secrets_policy" {
+  role       = aws_iam_role.external_secrets_role.name
+  policy_arn = aws_iam_policy.external_secrets_policy.arn
+}
