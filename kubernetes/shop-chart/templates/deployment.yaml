@@ -34,16 +34,13 @@ spec:
               value: {{ .Values.mysql.database | quote }}
 
             - name: DB_USER
-              valueFrom:
-                secretKeyRef:
-                  name: shop-mysql-secret
-                  key: MYSQL_USER
+              value: {{ .Values.mysql.user | quote }}
 
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: shop-mysql-secret
-                  key: MYSQL_PASSWORD
+                  key: password
 
           resources:
             requests:
