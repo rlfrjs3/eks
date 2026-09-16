@@ -1,6 +1,6 @@
 ## 1. ArgoCD  자동Sync 설정 때문에 삭제한 리소스를 되살릴 수 있기 때문에 가장 먼저 자동 Sync Off ##
 ## 2. Ingress로 프로비저닝된 AWS ALB 관련 리소스는 수동 삭제 필요 ##
-## 3. EBS CSI Driver로 동적 프로비저닝된 EBS 볼륨은 수동 삭제 필요 ##
+## 3. EBS CSI Driver로 동적 프로비저닝된 EBS 볼륨은 수동 삭제 필요##
 
 name: Ingress 삭제 + EKS 삭제 (Terraform)
 
@@ -51,7 +51,7 @@ jobs:
         echo "삭제 FLASK_ALB ARN: $FLASK_ALB_ARN"
 
 
-        kubectl delete ingress flask-ingress -n flask --ignore-not-found=true --wait=false
+        kubectl delete ingress flask-ingress -n flask --ignore-not-found=true --wait=true
 
         if [ "$FLASK_ALB_ARN" != "None" ] && [ -n "$FLASK_ALB_ARN" ]; then
           aws elbv2 wait load-balancers-deleted --load-balancer-arns "$FLASK_ALB_ARN"
@@ -64,15 +64,16 @@ jobs:
         echo "삭제 SHOP_ALB ARN: $SHOP_ALB_ARN"
 
 
-        kubectl delete ingress shop-ingress -n shop --ignore-not-found=true --wait=false
+        kubectl delete ingress shop-ingress -n shop --ignore-not-found=true --wait=true
 
         if [ "$SHOP_ALB_ARN" != "None" ] && [ -n "$SHOP_ALB_ARN" ]; then
           aws elbv2 wait load-balancers-deleted --load-balancer-arns "$SHOP_ALB_ARN"
         fi
 
-    - name: 8. shop PVC 삭제
+    - name: 8. shop-app 리소스 삭제 (MySQL Statefulset 삭제 -> PVC 삭제) , statefulset에서 사용 중이기 때문에 반드시 먼저 삭제해줘야 함
       run: | 
-        kubectl delete pvc shop-mysql-pvc -n shop --ignore-not-found=true
+        kubectl delete statefulset shop-mysql -n shop --ignore-not-found=true --wait=true
+        kubectl delete pvc shop-mysql-pvc -n shop --ignore-not-found=true --wait=true
 
     - name: 9. 테라폼 초기화 (init)
       run: | 
