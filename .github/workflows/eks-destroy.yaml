@@ -1,3 +1,7 @@
+## 1. ArgoCD  자동Sync 설정 때문에 삭제한 리소스를 되살릴 수 있기 때문에 가장 먼저 자동 Sync Off ##
+## 2. Ingress로 프로비저닝된 AWS ALB 관련 리소스는 수동 삭제 필요 ##
+## 3. EBS CSI Driver로 동적 프로비저닝된 EBS 볼륨은 수동 삭제 필요 ##
+
 name: Ingress 삭제 + EKS 삭제 (Terraform)
 
 on:
@@ -40,7 +44,7 @@ jobs:
         kubectl patch application flask-app -n argocd --type merge -p '{"spec":{"syncPolicy":{"automated":null}}}'
         kubectl patch application shop-app -n argocd --type merge -p '{"spec":{"syncPolicy":{"automated":null}}}'
 
-    - name: 6. flask Ingress 삭제 및 ALB 삭제 대기
+    - name: 6. flask Ingress 삭제 및 ALB 삭제 대기 
       run: |
         FLASK_ALB_DNS=$(kubectl get ingress flask-ingress -n flask -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
         FLASK_ALB_ARN=$(aws elbv2 describe-load-balancers --query "LoadBalancers[?DNSName=='${FLASK_ALB_DNS}'].LoadBalancerArn | [0]" --output text)
@@ -66,14 +70,18 @@ jobs:
           aws elbv2 wait load-balancers-deleted --load-balancer-arns "$SHOP_ALB_ARN"
         fi
 
-    - name: 8. 테라폼 초기화 (init)
+    - name: 8. shop PVC 삭제
+      run: | 
+        kubectl delete pvc shop-mysql-pvc -n shop --ignore-not-found=true
+
+    - name: 9. 테라폼 초기화 (init)
       run: | 
         terraform init
  
-    - name: 9. 테라폼 배포 계획 확인 (plan)
+    - name: 10. 테라폼 배포 계획 확인 (plan)
       run: | 
         terraform plan -destroy -out=destroy_plan
  
-    - name: 10. 테라폼 실제 배포 (apply)
+    - name: 11. 테라폼 실제 배포 (apply)
       run: | 
         terraform apply -auto-approve destroy_plan
