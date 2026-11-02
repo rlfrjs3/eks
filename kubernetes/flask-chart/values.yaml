@@ -7,7 +7,7 @@ replicaCount: 2
 
 image:
   repository: 356892573173.dkr.ecr.ap-northeast-2.amazonaws.com/ekseks-project-flask
-  tag: 6e558d22e64085e4a046d945dc024e2b8d045c47
+  tag: f86a97eb6bb7f63bb66eac4057ee64b23e4cab81
 
 containerPort: 80
 
